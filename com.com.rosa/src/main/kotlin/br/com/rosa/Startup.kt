@@ -1,4 +1,4 @@
-package com.com.rosa.com.com.rosa
+package br.com.rosa
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
