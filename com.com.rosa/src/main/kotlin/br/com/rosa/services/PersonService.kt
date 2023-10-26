@@ -1,5 +1,6 @@
 package br.com.rosa.services
 
+import br.com.rosa.controllers.PersonController
 import br.com.rosa.data.vo.v1.PersonVO
 import br.com.rosa.data.vo.v2.PersonVO as PersonVOV2
 import br.com.rosa.exceptions.ResourceNotFoundException
@@ -8,6 +9,7 @@ import br.com.rosa.mapper.custom.PersonMapper
 import br.com.rosa.model.Person
 import br.com.rosa.repositories.PersonRepository
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo
 import org.springframework.stereotype.Service
 import java.util.logging.Logger
 
@@ -23,20 +25,29 @@ class PersonService {
     private val logger = Logger.getLogger(PersonService::class.java.name)
 
     fun findById(id: Long) : PersonVO{
-        logger.info("Finding one Person!")
+        logger.info("Finding one Person with ${id}!")
 
         val person = repository.findById(id)
             .orElseThrow { ResourceNotFoundException("No records found for this ID!") }
 
-        return DozerMapper.parseObject(person, PersonVO::class.java)
-
+        val personVO = DozerMapper.parseObject(person, PersonVO::class.java)
+        val withSelRel = linkTo(PersonController::class.java).slash(personVO.key).withSelfRel()
+        personVO.add(withSelRel)
+        return personVO
     }
 
     fun findAll(): List<PersonVO> {
         logger.info("Finding all People!")
         val persons = repository.findAll()
 
-        return DozerMapper.parseListObjects(persons, PersonVO::class.java)
+        val personsVO = DozerMapper.parseListObjects(persons, PersonVO::class.java)
+
+        for(person in personsVO){
+            val withSelRel = linkTo(PersonController::class.java).slash(person.key).withSelfRel()
+            person.add(withSelRel)
+        }
+
+        return personsVO
     }
 
     fun create(personVO: PersonVO): PersonVO {
@@ -45,12 +56,16 @@ class PersonService {
         val person = DozerMapper.parseObject(personVO, Person::class.java)
         repository.save(person)
 
-       return DozerMapper.parseObject(person, PersonVO::class.java)
+        val personVO = DozerMapper.parseObject(person, PersonVO::class.java)
+        val withSelRel = linkTo(PersonController::class.java).slash(personVO.key).withSelfRel()
+        personVO.add(withSelRel)
+        return personVO
+
     }
 
     fun update(personVO: PersonVO): PersonVO {
         logger.info("Updating person with name: ${personVO.firstName}")
-        val entity = repository.findById(personVO.id)
+        val entity = repository.findById(personVO.key)
             .orElseThrow{ResourceNotFoundException("No records found for this ID!")}
 
         entity.firstName = personVO.firstName
@@ -58,9 +73,12 @@ class PersonService {
         entity.address = personVO.address
         entity.gender = personVO.gender
 
-       repository.save(entity)
+        repository.save(entity)
 
-        return DozerMapper.parseObject(entity, PersonVO::class.java)
+        val personVO = DozerMapper.parseObject(entity, PersonVO::class.java)
+        val withSelRel = linkTo(PersonController::class.java).slash(personVO.key).withSelfRel()
+        personVO.add(withSelRel)
+        return personVO
     }
 
     fun delete(id: Long) {
